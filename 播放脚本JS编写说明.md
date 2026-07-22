@@ -1,6 +1,8 @@
 # 播放 JS 脚本编写说明
 
-本文说明如何在 **Y影音** 中编写、上传、使用「播放期解析脚本」：换台时由 App 用 QuickJS 执行脚本，得到真实播放地址再交给播放器。
+本文说明如何在 **Y影音** 中编写、上传、使用「解析脚本」：  
+- **频道行**：换台时由 App 用 QuickJS 执行脚本，得到真实播放地址再交给播放器。  
+- **整源**：添加直播源链接为 `js://脚本.js?id=list` 时，拉源执行脚本，把返回文本解析为频道列表。
 
 适合：需要按频道 ID 动态向门户/接口要流地址的场景（例如门户签名接口）。
 
@@ -9,23 +11,53 @@
 ## 1. 整体流程
 
 ```text
-直播源频道行：js://你的脚本.js?id=频道ID
+【整源】添加源：js://脚本.js?id=list
+        ↓ QuickJS 返回 txt/m3u 正文 → 解析成多台（频道行常仍是 js://...?id=xxx）
+
+【频道行】换台：js://脚本.js?id=频道ID
         ↓
 App 读取 files/scripts/你的脚本.js
         ↓
-QuickJS 执行 → 调用入口函数（main / resolve，或 fn= 指定）
+QuickJS 执行 → main / resolve（或 fn=）
         ↓
-返回 http(s) 播放地址
-        ↓
-播放器拉流
+返回 http(s) 播放地址 → 播放器拉流
 ```
 
 - **不是**网页里打开的脚本（没有 `window` / 页面跳转）。
 - 每次换台都会执行一次；是否复用旧地址由**脚本自己**用 `localStorage` / `cache` 决定。
+- 整源列表会按普通直播源规则做磁盘缓存；改脚本后若未见更新，可清直播源缓存再刷新。
 
 ---
 
 ## 2. 直播源怎么写
+
+### 2.1 整源：一个 `js://` 展开成频道列表
+
+添加直播源时，链接可填：
+
+```text
+js://zg4k.js?id=list
+```
+
+App 拉源时执行脚本，把返回的**字符串当作 txt/m3u 列表正文**解析（与 http 源相同）。  
+脚本应对 `id=list`（或你约定的参数）`return` 多行文本，例如：
+
+```js
+async function main(id) {
+  if (id === "list") {
+    return [
+      "4K卫视,#genre#",
+      "北京卫视4K,js://zg4k.js?id=btv4k",
+      "浙江卫视4K,js://zg4k.js?id=zj4k",
+    ].join("\n");
+  }
+  // ... 按频道 id 返回单条流地址
+}
+```
+
+须先在 Web「脚本」页上传对应 `.js`。
+
+### 2.2 频道行：换台时再解析
 
 在 m3u / txt 直播源中，频道地址写成：
 
@@ -283,9 +315,10 @@ async function main(playId) {
 
 ```text
 协议：  js://demo.js?id=...&fn=可选
+        整源：js://demo.js?id=list（返回列表正文）
 上传：  Web → 脚本
 入口：  fn → main → resolve
-返回：  string 或 { url }
+返回：  string 或 { url }（整源时为 txt/m3u 文本；频道行为流地址）
 网络：  fetch / response.text() / response.json()
 日志：  console.log / warn / error
 缓存：  localStorage.*  或  cache.read/write/remove/exists
