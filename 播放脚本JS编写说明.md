@@ -1,6 +1,6 @@
 # 播放 JS 脚本编写说明
 
-本文说明如何在 **Y影音** 中编写、上传、使用「解析脚本」：  
+本文说明如何在 **Y影音** 中编写、上传、使用「播放期解析脚本」：  
 - **频道行**：换台时由 App 用 QuickJS 执行脚本，得到真实播放地址再交给播放器。  
 - **整源**：添加直播源链接为 `js://脚本.js?id=list` 时，拉源执行脚本，把返回文本解析为频道列表。
 
@@ -16,7 +16,7 @@
 
 【频道行】换台：js://脚本.js?id=频道ID
         ↓
-App 读取 files/scripts/你的脚本.js
+App 读取已上传的脚本文件
         ↓
 QuickJS 执行 → main / resolve（或 fn=）
         ↓
@@ -91,11 +91,11 @@ js://demo.js?id=xxx&fn=resolve
 
 ## 3. 上传脚本
 
-1. 手机/电脑浏览器打开：`http://<电视IP>:9876/advance`
+1. 手机/电脑浏览器打开高级设置：`http://<电视IP>:8888/advance`（也可从数据推送页点「高级设置」；默认端口 8888，若已改端口以 **设置 → 应用 → 局域网服务端口** / 数据推送页为准）
 2. 进入 **脚本**
 3. 上传 `.js` 文件，或粘贴内容保存
 
-脚本保存在设备：`应用私有目录/files/scripts/`  
+脚本保存在设备本地（应用私有目录），换台时按文件名读取。  
 文件名仅允许：`字母数字 . _ -`，且以 `.js` 结尾（如 `demo.js`）。
 
 ---
@@ -168,7 +168,7 @@ var data = await response.json();
 // response.ok、response.status、response.url 可用
 ```
 
-由 App 用 OkHttp 代发请求（含跟随重定向）。**没有**浏览器 Cookie 罐、**没有** CORS 限制。
+由 App 代发网络请求（含跟随重定向）。**没有**浏览器 Cookie 罐、**没有** CORS 限制。
 
 ### 5.2 `console`
 
@@ -178,11 +178,11 @@ console.warn("警告");
 console.error("错误");
 ```
 
-输出到 App 的 logcat（标签相关日志中可见）。
+输出写入 App 运行日志，排错时可在同网 Web「脚本」页结合换台结果查看。
 
 ### 5.3 `localStorage`（磁盘持久化）
 
-与浏览器用法相同，数据写在设备 `files/script-kv/`，**杀进程、换台后仍在**。
+与浏览器用法相同，数据保存在设备本地，**杀进程、换台后仍在**。
 
 ```js
 localStorage.setItem("demo_cache_" + playId, JSON.stringify({
@@ -199,7 +199,7 @@ localStorage.clear(); // 清空全部脚本 KV（慎用）
 
 ### 5.4 `cache`（同一套存储，另一种写法）
 
-与 `localStorage` **共用** `files/script-kv/`，key 空间相同。
+与 `localStorage` **共用同一套本地存储**，key 空间相同。
 
 ```js
 cache.write("mykey", "内容");
@@ -302,11 +302,8 @@ async function main(playId) {
 ## 9. 调试 checklist
 
 1. Web「脚本」页确认文件已上传且文件名与 `js://` 一致。  
-2. 直播源行为：`js://demo.js?id=...`。  
-3. logcat 过滤：`MainContentState` / `JsPlayScript`  
-   - `JS 脚本解析开始`  
-   - `JS 脚本解析成功: http...`  
-   - 或 `JS 脚本解析失败` + 错误信息。  
+2. 直播源写成：`js://demo.js?id=...`，换台试播。  
+3. 失败时看播放提示；脚本里用 `console.log` / `console.error` 打出关键步骤。  
 4. 若用了缓存，第二次同 ID 换台应明显更快；Web「脚本缓存」里能看到对应 key。
 
 ---
@@ -322,7 +319,6 @@ async function main(playId) {
 网络：  fetch / response.text() / response.json()
 日志：  console.log / warn / error
 缓存：  localStorage.*  或  cache.read/write/remove/exists
-落盘：  files/scripts/*.js
-        files/script-kv/   （缓存）
+落盘：  设备本地（脚本文件与缓存会持久保存）
 清除：  Web 脚本页
 ```
