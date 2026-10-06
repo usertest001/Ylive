@@ -55,7 +55,7 @@ async function main(id) {
 }
 ```
 
-须先在 Web「脚本」页上传对应 `.js`。
+须先在 Web「脚本」页上传对应 `.js`，或从 http(s) 文件地址拉取到设备（见 §2.3）。
 
 ### 2.2 频道行：换台时再解析
 
@@ -87,16 +87,35 @@ CCTV1,js://demo.js?id=cctv1HD$线路1
 js://demo.js?id=xxx&fn=resolve
 ```
 
+### 2.3 从 URL 安装脚本（可选）
+
+Web「脚本」页可填 **文件地址** 拉取到设备，例如：
+
+```text
+http://主机/路径/demo.js
+```
+
+不要带 `?id=list`（那是执行参数，不是文件地址）。App 会去掉 query 后 GET。不填保存名则按路径文件名存成 `demo.js`；也可另填 `local.js` 存成别名，来源仍是这条文件地址。远程改完后点该脚本的「更新」即可，不用重填链接。
+
+本地上传或编辑保存会清掉来源，「更新」按钮消失。直播源仍写：
+
+```text
+js://demo.js?id=list
+```
+
+频道行仍用 `js://demo.js?id=…`，不要把 http 文件地址当频道播放地址。
+
 ---
 
 ## 3. 上传脚本
 
 1. 手机/电脑浏览器打开高级设置：`http://<电视IP>:8888/advance`（也可从数据推送页点「高级设置」；默认端口 8888，若已改端口以 **设置 → 应用 → 局域网服务端口** / 数据推送页为准）
 2. 进入 **脚本**
-3. 上传 `.js` 文件，或粘贴内容保存
+3. 上传 `.js` 文件，粘贴保存，或从 URL 拉取
 
 脚本保存在设备本地（应用私有目录），换台时按文件名读取。  
 文件名仅允许：`字母数字 . _ -`，且以 `.js` 结尾（如 `demo.js`）。
+从 URL 拉取成功后会记住文件地址，可在列表里一键更新。
 
 ---
 
@@ -112,8 +131,26 @@ js://demo.js?id=xxx&fn=resolve
 
 ### 调用方式
 
-- 若有 `id` 参数：`await 入口函数(id字符串)`
+- 若有 `id` 参数：`await 入口函数(id字符串, params对象)`（第二个参数为全部 query；旧脚本可只写一个形参）
 - 若无 `id`：`await 入口函数(params对象)`，`params` 为全部 query（如 `{ id: "...", fn: "..." }`）
+
+### 脚本自行回看：`catchup=js`
+
+频道行写成：
+
+```text
+CCTV1,js://demo.js?id=cctv1HD&catchup=js
+```
+
+含义：回看由脚本处理。点 EPG 已结束节目时，App 会在同一 URL 上注入当前节目的 Unix 秒起止：
+
+```text
+js://demo.js?id=cctv1HD&catchup=js&start=1791129840&end=1791133140
+```
+
+脚本从第二个参数读取，例如 `params.start` / `params.end`；返回值即为最终播放地址，App **不再**拼接 `playseek` / `starttime` 等。
+
+没有 `catchup=js` 的 `js://` 仍按旧逻辑：先解析直播地址，再按源/线路规则拼接回看参数。
 
 ### 返回值
 
@@ -301,10 +338,13 @@ async function main(playId) {
 
 ## 9. 调试 checklist
 
-1. Web「脚本」页确认文件已上传且文件名与 `js://` 一致。  
-2. 直播源写成：`js://demo.js?id=...`，换台试播。  
-3. 失败时看播放提示；脚本里用 `console.log` / `console.error` 打出关键步骤。  
-4. 若用了缓存，第二次同 ID 换台应明显更快；Web「脚本缓存」里能看到对应 key。
+1. Web「脚本」页确认文件已在设备上且文件名与 `js://` 一致（可上传或从 URL 拉取）。  
+2. 浏览器可直接解析（与换台同一套 QuickJS），页面显示播放地址或报错原文：  
+   `http://<电视IP>:8888/cbg_huikan.js?id=cctv1HD`  
+   回看：`http://<电视IP>:8888/cbg_huikan.js?id=cctv1HD&catchup=js&start=秒&end=秒`  
+3. 直播源写成：`js://demo.js?id=...`，换台试播。  
+4. 失败时看播放提示；脚本里用 `console.log` / `console.error` 打出关键步骤。  
+5. 若用了缓存，第二次同 ID 换台应明显更快；Web「脚本缓存」里能看到对应 key。
 
 ---
 
@@ -313,12 +353,14 @@ async function main(playId) {
 ```text
 协议：  js://demo.js?id=...&fn=可选
         整源：js://demo.js?id=list（返回列表正文）
-上传：  Web → 脚本
-入口：  fn → main → resolve
+        脚本回看：js://demo.js?id=频道&catchup=js（App 注入 start/end 秒）
+上传：  Web → 脚本（上传 / 粘贴 / URL 拉取；有来源时可更新）
+入口：  fn → main → resolve；有 id 时 main(id, params)
 返回：  string 或 { url }（整源时为 txt/m3u 文本；频道行为流地址）
 网络：  fetch / response.text() / response.json()
 日志：  console.log / warn / error
 缓存：  localStorage.*  或  cache.read/write/remove/exists
 落盘：  设备本地（脚本文件与缓存会持久保存）
 清除：  Web 脚本页
+调试：  GET http://<电视IP>:8888/脚本.js?id=...（纯文本播放地址）
 ```
