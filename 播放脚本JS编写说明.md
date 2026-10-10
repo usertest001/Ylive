@@ -2,7 +2,8 @@
 
 本文说明如何在 **Y影音** 中编写、上传、使用「播放期解析脚本」：  
 - **频道行**：换台时由 App 用 QuickJS 执行脚本，得到真实播放地址再交给播放器。  
-- **整源**：添加直播源链接为 `js://脚本.js?id=list` 时，拉源执行脚本，把返回文本解析为频道列表。
+- **整源**：添加直播源链接为 `js://脚本.js?id=list` 时，拉源执行脚本，把返回文本解析为频道列表。  
+- **节目单（按天）**：节目单源写成 `js://epg.js`（可省略查询串；App 自动补 `ch`/`date`）时，脚本返回与 HTTP 按天 EPG 相同的 JSON 正文。
 
 适合：需要按频道 ID 动态向门户/接口要流地址的场景（例如门户签名接口）。
 
@@ -36,7 +37,7 @@ QuickJS 执行 → main / resolve（或 fn=）
 添加直播源时，链接可填：
 
 ```text
-js://zg4k.js?id=list
+js://demo.js?id=list
 ```
 
 App 拉源时执行脚本，把返回的**字符串当作 txt/m3u 列表正文**解析（与 http 源相同）。  
@@ -46,9 +47,9 @@ App 拉源时执行脚本，把返回的**字符串当作 txt/m3u 列表正文**
 async function main(id) {
   if (id === "list") {
     return [
-      "4K卫视,#genre#",
-      "北京卫视4K,js://zg4k.js?id=btv4k",
-      "浙江卫视4K,js://zg4k.js?id=zj4k",
+      "示例分组,#genre#",
+      "频道A,js://demo.js?id=ch_a",
+      "频道B,js://demo.js?id=ch_b",
     ].join("\n");
   }
   // ... 按频道 id 返回单条流地址
@@ -340,8 +341,8 @@ async function main(playId) {
 
 1. Web「脚本」页确认文件已在设备上且文件名与 `js://` 一致（可上传或从 URL 拉取）。  
 2. 浏览器可直接解析（与换台同一套 QuickJS），页面显示播放地址或报错原文：  
-   `http://<电视IP>:8888/cbg_huikan.js?id=cctv1HD`  
-   回看：`http://<电视IP>:8888/cbg_huikan.js?id=cctv1HD&catchup=js&start=秒&end=秒`  
+   `http://<电视IP>:8888/demo.js?id=cctv1HD`  
+   回看：`http://<电视IP>:8888/demo.js?id=cctv1HD&catchup=js&start=秒&end=秒`  
 3. 直播源写成：`js://demo.js?id=...`，换台试播。  
 4. 失败时看播放提示；脚本里用 `console.log` / `console.error` 打出关键步骤。  
 5. 若用了缓存，第二次同 ID 换台应明显更快；Web「脚本缓存」里能看到对应 key。

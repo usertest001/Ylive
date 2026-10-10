@@ -2,7 +2,7 @@
 
 [English](./README.en.md) · [简体中文](./README.md)
 
-Related docs: [Catchup Manual (Chinese)](./回看使用手册.md) · [Voice Control via XiaoAI (Chinese)](./小米音响小爱同学语音换台接口文档.md) · [Custom JS Playback Scripts (Chinese)](./播放脚本JS编写说明.md)
+Related docs: [Catchup Manual (Chinese)](./回看使用手册.md) · [Voice Control via XiaoAI (Chinese)](./小米音响小爱同学语音换台接口文档.md) · [Custom JS Playback Scripts (Chinese)](./播放脚本JS编写说明.md) · [Custom PHP Playback Scripts (Chinese)](./播放脚本PHP说明.md)
 
 ---
 
